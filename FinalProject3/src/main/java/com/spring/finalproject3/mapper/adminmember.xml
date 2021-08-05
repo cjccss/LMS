@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- ==== #29. mapper 기본설정 ==== -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="adminmember">
+
+	<resultMap type="HashMap" id="adminsudentMap">
+		<result property="FK_MAJSEQ" column="fk_majseq" javaType="String" />
+		<result property="PERNO" column="perno" javaType="String" />
+		<result property="NAME" column="name" javaType="String" />
+		<result property="BIRTHDAY" column="birthday" javaType="String" />
+		<result property="MOBILE" column="mobile" javaType="String" />
+		<result property="EMAIL" column="email" javaType="String" />
+		<result property="CONTENT" column="content" javaType="String" />
+	</resultMap>
+	
+	<!-- 관리자페이지 회원관리 학생목록보기 -->
+	<select id="getAdminStudent" parameterType="HashMap" resultMap="adminsudentMap">
+		select fk_majseq, perno, name, mobile, email, content , rno, birthday
+		from        
+		(        
+		    select fk_majseq, perno, name, mobile, email, content , birthday,
+		           row_number() over(order by perno desc) as rno     
+		    from tbl_person p join tbl_major m
+		    on p.fk_majseq = m.MAJSEQ
+		    where idle = 0 and identity = 0
+		    <if test='searchWord != ""'>
+		    and lower(${searchType}) like '%'||lower(#{searchWord})||'%'
+		    </if>
+		)v
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<!-- === 총 학생 수(totalCount) 구하기 - 검색이 있을때와 검색이 없을때로 나뉜다. === -->
+   	<select id="getTotalCount" parameterType="HashMap" resultType="int">
+   		select count(*)
+		from tbl_person p join tbl_major m
+		on p.fk_majseq = m.MAJSEQ
+		where idle = 0 and identity = 0
+   		<if test='searchWord != ""'>
+   			and lower(${searchType}) like '%'|| lower(#{searchWord}) ||'%'
+   		</if>
+   	</select>
+   	
+   	<select id="getStudentView" parameterType="String" resultType="com.spring.finalproject3.seongkyung.model.PersonVO">
+   		select perno, name, birthday, mobile, email, address
+		from tbl_person
+		where idle = 0 and identity = 0 and perno = #{PERNO}
+   	</select>
+
+	<!-- === 총 학생 수(totalCount) 구하기 - 검색이 있을때와 검색이 없을때로 나뉜다. === -->
+   	<select id="getProfessorTotalCount" parameterType="HashMap" resultType="int">
+   		select count(*)
+		from tbl_person p join tbl_major m
+		on p.fk_majseq = m.MAJSEQ
+		where idle = 0 and identity = 1
+   		<if test='searchWord != ""'>
+   			and lower(${searchType}) like '%'|| lower(#{searchWord}) ||'%'
+   		</if>
+   	</select>
+   	
+   	<!-- 관리자페이지 회원관리 교수목록보기 -->
+	<select id="getAdminProfessor" parameterType="HashMap" resultMap="adminsudentMap">
+		select fk_majseq, perno, name, mobile, email, content , rno, birthday
+		from        
+		(        
+		    select fk_majseq, perno, name, mobile, email, content , birthday,
+		           row_number() over(order by perno desc) as rno     
+		    from tbl_person p join tbl_major m
+		    on p.fk_majseq = m.MAJSEQ
+		    where idle = 0 and identity = 1
+		    <if test='searchWord != ""'>
+		    and lower(${searchType}) like '%'||lower(#{searchWord})||'%'
+		    </if>
+		)v
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<!-- 쪽지시험 필드 생성 -->
+	<insert id="addquiz" parameterType="HashMap">
+		insert into tbl_quiz(quizno, quizname, fk_subno,quizday)
+		values(quizSeq.nextval,#{quizname},#{subno},(sysdate+2))
+	</insert>
+	
+	<!-- 쪽지시험 테이블에서 시험명으로 쪽지시험 일련번호를 검색 -->
+	<select id="getquiz" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.QuizVO">
+		select quizno, quizname, fk_subno, quizday
+		from tbl_quiz
+		where quizname = #{quizname}
+	</select>
+	
+	<!-- 쪽지시험_문제  필드 생성 -->
+	<insert id="addquestion" parameterType="HashMap">
+		insert into tbl_question(questionno, fk_quizno, qzno, qzcontent, answerfirst, answersecond, answerthird, answerfourth)
+		values(questionSeq.nextval, #{fk_quizno, jdbcType=VARCHAR}, #{qzno, jdbcType=VARCHAR}, #{qzcontent, jdbcType=VARCHAR}, #{answerfirst, jdbcType=VARCHAR}, #{answersecond, jdbcType=VARCHAR}, #{answerthird, jdbcType=VARCHAR}, #{answerfourth, jdbcType=VARCHAR})
+	</insert>
+	
+	<!-- 쪽지시험_문제_문제번호로 문제일련번호 검색  -->
+	<select id="getquestion" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.QuestionVO">
+		select questionno, fk_quizno, qzno, qzcontent, answerfirst, answersecond, answerthird, answerfourth
+		from tbl_question
+		where qzno = #{qzno} and fk_quizno = #{fk_quizno}
+	</select>
+	
+	<!-- 쪽지시험_정답 필드 생성  -->
+	<insert id="addquizans" parameterType="HashMap">
+		insert into tbl_quizans(quizansno, fk_quizno, fk_questionno, quizanswer)
+		values(quizanswerSeq.nextval, #{fk_quizno}, #{fk_questionno}, #{quizanswer})
+	</insert>
+	
+	<resultMap type="HashMap" id="QuizListMap">
+		<result property="quizname" column="quizname" javaType="String" />
+		<result property="quizday" column="quizday" javaType="String" />
+		<result property="subname" column="subname" javaType="String" />
+		<result property="name" column="name" javaType="String" />
+		<result property="quizno" column="quizno" javaType="String" />
+	</resultMap>
+	
+	<!-- === 페이징 처리한 글목록 가져오기(검색이 있든지, 검색이 없든지 모두 다 포함한 것) === -->
+	<select id="quizvoListSearchWithPaging" parameterType="HashMap" resultMap="QuizListMap">
+		select rno, quizname, quizday, subname, name, quizno
+		from
+		(            
+		     SELECT row_number() over(order by quizno desc) as rno, 
+		           A.quizname AS quizname, to_char(A.quizday, 'yyyy-mm-dd') AS quizday, S.subname AS subname, C.name AS name, quizno
+		     FROM tbl_quiz A JOIN tbl_subject S
+		     ON fk_subno = subno
+		     JOIN tbl_person c
+		     ON fk_perno = perno   
+		     where a.fk_subno = #{subno}  
+		) V
+		where rno between #{startRno} and #{endRno}
+	</select>
+	
+	<!-- 총 쪽지시험 수(totalCount) -->
+	<select id="getTotalQuiz" parameterType="HashMap" resultType="int">
+		select count(*)
+		from tbl_quiz join tbl_subject
+		ON fk_subno = subno
+		where fk_subno = #{subno}
+	</select>
+	
+	<!-- 받아온 시험명으로 과목명 검색하기 -->
+	<select id="getSubname" parameterType="String" resultType="com.spring.finalproject3.seongkyung.model.SubjectVO">
+		select subname
+		from tbl_subject
+		where subno = (select fk_subno from tbl_quiz where quizname = #{quizname})
+	</select>
+	
+	<!-- 받아온 시험명으로 문제리스트 검색 -->
+	<select id="getQuestionList" parameterType="String" resultType="com.spring.finalproject3.seongkyung.model.QuestionVO">
+		select qzno, qzcontent, answerfirst, answersecond, answerthird, answerfourth, questionno
+		from tbl_question
+		where fk_quizno = (select quizno from tbl_quiz where quizname = #{quizname})
+		order by qzno asc
+	</select>
+	
+	<!-- 가져온 시험명으로 문제의 총 갯수를 구한다. -->
+	<select id="getQuizTotalCount" parameterType="String" resultType="int">
+		select count(*)
+		from tbl_question
+		where fk_quizno = (select quizno from tbl_quiz where quizname = #{quizname})
+	</select>
+	
+	<!-- 시험명으로 일련번호 검색 -->
+	<select id="getQuizNo" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.QuizVO">
+		select quizno, quizname, fk_subno, quizday 
+		from tbl_quiz 
+		where quizname = #{quizname}
+	</select>
+	
+	<!-- 시험명과 문제번호로 문제 일련번호 검색 -->
+	<select id="getQuestionNo" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.QuestionVO">
+		select questionno, fk_quizno, qzno, qzcontent, answerfirst, answersecond, answerthird, answerfourth
+		from tbl_question
+		where fk_quizno = (select quizno from tbl_quiz where quizname = #{quizname}) and qzno = #{qzno}
+	</select>
+	
+	<!-- 일련번호, 문제일련번호, 사람번호를 구했으면 그 값을 가지고 insert -->
+	<insert id="addStudentAnswer" parameterType="HashMap"> 
+		insert into tbl_stdtans (stdtanswerno, fk_perno, fk_quizno, fk_questionno, stdtanswer)
+		values(stdtansSeq.nextval, #{perno}, #{quizno}, #{questionno}, #{stdtanswer})
+	</insert>
+	
+	<!-- 출석신호 테이블 insert 후 집어넣은 랜덤값을 가져온다. -->
+	<insert id="addattendancesign" parameterType="HashMap">
+		insert into tbl_attendance(atdcno, fk_subno, fk_perno, randomsign)
+		values(attendanceSeq.nextval, #{fk_subno}, #{fk_perno}, CEIL(dbms_random.value(100000,999999)))
+	</insert>
+	
+	<!-- 출석신호 테이블 insert 후 집어넣은 랜덤값을 가져온다. -->
+	<select id="getaddattendancesign" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.AttendanceVO">
+		select atdcno, attendancedate, randomsign, fk_subno, fk_perno, to_char(attendancedate, 'yyyy-mm-dd') as attendancedate
+		from tbl_attendance
+		where to_char(attendancedate, 'yyyy-mm-dd') = to_char(sysdate, 'yyyy-mm-dd') and fk_subno = #{fk_subno} and fk_perno = #{fk_perno}
+	</select>
+	
+	<!-- select 에 넣을 출석신호를 보낸 날짜 List -->
+	<select id="getattendanceList" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.AttendanceVO">
+		select atdcno, to_char(attendancedate, 'yyyy-mm-dd') as attendancedate, randomsign, fk_subno, fk_perno
+		from tbl_attendance
+		where fk_subno = #{subno}
+		order by attendancedate desc
+	</select>
+	
+	<resultMap type="HashMap" id="studentsignListMap">
+		<result property="name" column="name" javaType="String" />
+		<result property="perno" column="perno" javaType="String" />
+		<result property="inputatdcdate" column="inputatdcdate" javaType="String" />
+	</resultMap>
+	
+	<!-- select 태그의 변화에 따라 해당 날짜에 출석한 학생들의 리스트를 알려준다. -->
+	<select id="studentsignList" parameterType="HashMap" resultMap="studentsignListMap">
+		select name, perno, to_char(inputatdcdate, 'yyyy-mm-dd') as inputatdcdate
+		from tbl_inputatdc i join tbl_person p
+		on fk_perno = perno
+		where  fk_subno = #{subno}
+		<if test='attendancedate != null and !"".equals(attendancedate)'>
+		and to_char(inputatdcdate, 'yyyy-mm-dd') = #{attendancedate}
+		</if>
+	</select>
+	
+	<!-- 수강 테이블의 학생들의 리스트를 가지고 온다. -->
+   	<select id="getStudentList" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.ClassVO">
+   		select fk_perno, fk_subno
+		from tbl_class
+		where fk_subno = #{fk_subno}
+   	</select>
+   	
+   	<!-- 반복문으로 담긴 학생번호로 출석입력테이블에 행을 넣어준다. -->
+   	<insert id="addStudentList" parameterType="HashMap">
+		insert into tbl_inputatdc (inatdcno, fk_atdcno, fk_perno, fk_subno, inputweekno) 
+		values(inputatdcseq.nextval, #{atdcno}, #{sfk_perno}, #{fk_subno}, #{weekno})
+	</insert>
+	
+	<!-- 신호의 랜덤번호와 비교하면서 해당 신호의 행을 읽어옴 -->
+	<select id="getinputstudentsign" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.AttendanceVO">
+		select atdcno, to_number(to_char(attendancedate, 'yyyymmddhh24mi')) as attendancedate
+		from tbl_attendance
+		where fk_subno = #{fk_subno} and randomsign = #{randomsign} and to_char(attendancedate, 'yyyy-mm-dd') = to_char(sysdate, 'yyyy-mm-dd')
+	</select>
+	
+	<!-- 현재 몇 주차인지 알아오자. -->
+	<select id="getinputweekno" parameterType="HashMap" resultType="int">
+		select count(*) as inputweekno
+		from tbl_attendance
+		where fk_perno = #{fk_perno} and fk_subno = #{fk_subno}
+	</select>
+	
+	<!-- 신호를 입력  => 결석으로 된 행을 입력받은 시간을 넣어주면서 출석으로 바꾸어준다. -->
+	<update id="addstudentsign" parameterType="HashMap"> 
+		update tbl_inputatdc set inputatdcstatus = 2 , inputatdcdate = sysdate
+		where fk_subno = #{fk_subno} and fk_perno = #{fk_perno} and fk_atdcno = (select atdcno from tbl_attendance where randomsign = #{randomsign})
+	</update>
+	
+	<!-- 입력한 시간의 값을 알아온다. -->
+	<select id="gettimevs" parameterType="HashMap" resultType="String">
+		select to_number(to_char(inputatdcdate, 'yyyymmddhh24mi')) as inputatdcdate
+		from tbl_inputatdc 
+		where fk_atdcno = (select atdcno from tbl_attendance where randomsign = #{randomsign}) and fk_subno = #{fk_subno} and fk_perno = #{fk_perno}
+	</select>
+	
+	<!-- 지각 처리 -->
+	<update id="changesign" parameterType="HashMap">
+		update tbl_inputatdc set inputatdcstatus = 1
+		where fk_atdcno = (select atdcno from tbl_attendance where randomsign = #{randomsign}) and fk_subno = #{fk_subno} and fk_perno = #{fk_perno}
+	</update>
+   	
+   	<!-- 접속한 학생의 출석 상태를 보여준다. -->
+   	<select id="getStudentCheckSign" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.InputatdcVO">
+   		select inputatdcstatus, inputweekno, nvl(to_char(inputatdcdate, 'yyyy-mm-dd hh24:mi:ss'),9999) as inputatdcdate
+		from tbl_inputatdc
+		where fk_subno = #{fk_subno} and fk_perno = #{fk_perno}
+   	</select>	
+   	
+   	<!-- 만약 이미 출석이 되어있다면을 처리하기 위해 존재하는지 검색한다. -->
+	<select id="getchecksign" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.InputatdcVO">
+		select inputatdcstatus, inputweekno, nvl(to_char(inputatdcdate, 'yyyy-mm-dd'),9999) as inputatdcdate
+		from tbl_inputatdc
+		where fk_subno = fk_subno and fk_perno = #{fk_perno} and fk_atdcno = (select atdcno from tbl_attendance where randomsign = #{randomsign})
+	</select>
+	
+	<!-- 흠.. subno가 검색이 안되므로 검색이 되는 subject 로 subno를 불러와 줍시다. -->
+	<select id="getAttendancesubno" parameterType="String" resultType="com.spring.finalproject3.seongkyung.model.SubjectVO">
+		  select subno
+          from tbl_subject
+          where subname = #{subject}
+	</select>
+   	
+   	<resultMap type="HashMap" id="getScoreMap">
+		<result property="quizanswer" column="quizanswer" javaType="String" />
+		<result property="stdtanswer" column="stdtanswer" javaType="String" />
+		<result property="fk_quizno" column="fk_quizno" javaType="String" />
+		<result property="fk_questionno" column="fk_questionno" javaType="String" />
+	</resultMap>  
+   	
+   	<!-- 정답을 비교하기 위해 정답테이블과 학생 정답테이블을 조인해서 담아온다 -->
+   	<select id="getScoreset" parameterType="HashMap" resultMap="getScoreMap">
+		  SELECT quizanswer, stdtanswer, Q.fk_quizno as fk_quizno, Q.fk_questionno as fk_questionno
+		  from tbl_quizans Q left join tbl_stdtans S
+		  on Q.fk_questionno = S.fk_questionno 
+		  where q.fk_quizno = #{quizno} and q.fk_questionno = #{questionno}
+		  order by quizansno
+   	</select>
+   	
+   	<!-- 정답을 비교해서 정답이면 해당 학생 정답테이블의 행에서 점수를 1 올려준다. -->
+   	<update id="updscore" parameterType="HashMap">
+   		update tbl_stdtans set quizscore = 1 
+   		where fk_quizno = #{fk_quizno} and fk_questionno = #{fk_questionno}
+   	</update>
+    
+    <!-- 이미 시험을 쳤는지 검사한다. -->
+    <select id="getscorecheck" parameterType="HashMap" resultType="com.spring.finalproject3.seongkyung.model.StdtansVO">
+    	select stdtanswerno
+		from tbl_stdtans
+		where fk_quizno = #{quizno} and fk_questionno = #{questionno}
+    </select>
+	
+	<!-- 시험명 알아오기 -->
+	<select id="getquizname" parameterType="String" resultType="String">
+		select quizname
+		from tbl_quiz
+		where quizno = #{quizno}
+	</select>
+	
+	<!-- 학생이 퀴즈를 풀었는지 알아오기 -->
+	<select id="getquizcheck" parameterType="String" resultType="String">
+		select distinct(fk_quizno) as fk_quizno
+		from tbl_stdtans 
+		where fk_quizno = #{quizno}
+	</select>
+	
+</mapper>

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Message">
+
+   <!--  총 게시물 건수(totalCount) 구하기  -->
+   <select id="getTotalCount" parameterType="HashMap" resultType="int" >
+   		select count(*)
+   		from tbl_inbox
+   		where receiver = to_number(#{userid})
+		<if test='searchWord != "" '>
+         and lower(${searchType}) like '%'|| lower(#{searchWord}) ||'%'
+      	</if>
+   </select>
+   
+	<!-- 페이징 처리를 한 검색어가 있는 전체 글목록 보여주기  -->
+   <select id="inboxListSearchWithPaging" parameterType="HashMap" resultType="com.spring.finalproject3.hyeminJang.model.InboxVO">
+   	select  inboxSeq, fk_perno, receiver, subject, reDate,  readState , inboxName
+		from (
+			select row_number() over (order by inboxSeq desc) as rno, 
+			            inboxSeq, fk_perno, receiver, subject, 
+			            to_char(reDate, 'yyyy-mm-dd PM HH:MI:SS') as reDate, readState, inboxName
+			from tbl_inbox
+			where receiver = to_number(#{userid})
+			<if test='readState != "" '>
+			and readState = 0
+			</if>
+			<if test='searchWord != "" '>
+			and lower(${searchType}) like '%'|| lower(#{searchWord}) ||'%'
+			</if>
+		)V
+		where rno between #{startRno} and #{endRno} 
+		order by inboxSeq desc
+   </select>
+	
+	<!-- 쪽지 1개 글 보기  -->
+   <select id="getInView" parameterType="int" resultType="com.spring.finalproject3.hyeminJang.model.InboxVO">
+		    select  inboxSeq, fk_perno, receiver, subject, inboxName,
+		             to_char(reDate, 'yyyy-mm-dd PM HH:MI:SS') as reDate, readState
+		    from tbl_inbox
+		    where inboxSeq = #{inboxSeq}
+		
+   </select>
+   
+   <!-- // 읽은것은 1로 변환해준다. -->
+   <update id="updateReadState" parameterType="int">
+   		update tbl_inbox set readState = 1
+		where inboxSeq = #{inboxSeq}
+   </update>
+   
+   	<update id="updateisRead" parameterType="int">
+   		update tbl_messageSender set isRead = 1 , readDate = sysdate
+		where fk_inboxSeq = #{inboxSeq}
+   </update>
+   
+   <!-- // 안읽은 메세지갯수세기 -->
+   <select id="getNonReadCount" parameterType="int" resultType="int">
+   		select count(*)
+   		from tbl_inbox
+   		where readState = 0 and receiver = #{userid} 
+   </select>
+   
+   <!-- // inbox에서 체크박스에서 선택된 쪽지  삭제하기  -->
+   <delete id="inDel"  parameterType="int" >
+   		delete tbl_inbox
+   		where inboxSeq = #{deleteSeq}
+   </delete>
+   
+   <select id="searchPerson" parameterType="int" resultType="com.spring.finalproject3.joseungjin.model.PersonVO">
+   		select perno, name, fk_majseq, identity, pwd
+   		from tbl_person
+   		where perno = #{parseInt} 
+   </select>
+   
+   <select id="getNameMaj" parameterType="int" resultType="String">
+   		select content
+   		from tbl_major
+   		where majseq = #{majseq} 
+   </select>
+
+	<insert id="insertInbox" parameterType="HashMap">
+		insert into tbl_inbox(inboxSeq, fk_perno, receiver, subject, reDate, readState, inboxName)
+		values(seq_tbl_inbox_inboxSeq.nextval,   #{login_userid},  #{receiver},  #{text},  default, default, #{sender})
+	</insert>
+	
+	<insert id="insertOutbox" parameterType="HashMap">
+		insert into tbl_outbox(outboxSeq, fk_perno, sender, subject, senDate, readDate, outboxName)
+		values(seq_tbl_outbox_outboxSeq.nextval,   #{receiver}, #{login_userid} ,  #{text},  default, default, #{name})
+	</insert>
+	
+	<insert id="insertMessageSender">
+		insert into tbl_messageSender(senderSeq, fk_inboxSeq, fk_outboxSeq, isRead, readDate)
+		values(senderSeq.nextval, (seq_tbl_inbox_inboxSeq.nextval-1), (seq_tbl_outbox_outboxSeq.nextval-1) ,  0, default)
+	</insert>
+	
+	
+	
+	
+	<!-- // outbox에서 체크박스에서 선택된 쪽지  삭제하기  -->
+   <delete id="outDel"  parameterType="int" >
+   		delete tbl_outbox
+   		where outboxSeq = #{deleteSeq}
+   </delete>
+	
+	 <!--  총 게시물 건수(totalCount) 구하기  -->
+   <select id="getTotalCountout" parameterType="HashMap" resultType="int" >
+   		select count(*)
+   		from tbl_outbox
+   		where sender = to_number(#{userid})
+		<if test='searchWord != "" '>
+         and lower(${searchType}) like '%'|| lower(#{searchWord}) ||'%'
+      	</if>
+   </select>
+   
+   <!-- // 페이징 처리한 글목록 가져오기(검색이 있든지, 검색이 없든지 모두 다 포함한것) <<outbox>> -->
+   <select id="outboxListSearchWithPaging" parameterType="HashMap" resultType="com.spring.finalproject3.hyeminJang.model.OutboxVO">
+   		select  outboxSeq, fk_perno, sender, subject, senDate,  readDate , outboxName, isRead
+		from (
+			select row_number() over (order by outboxSeq desc) as rno, 
+			            outboxSeq, fk_perno, sender, subject, 
+			            to_char(senDate, 'yyyy-mm-dd PM HH:MI:SS') as senDate, to_char(S.readDate, 'yyyy-mm-dd') as readDate, outboxName, isRead
+			from tbl_outbox O join tbl_messageSender S
+            on O.outboxSeq = S.fk_outboxSeq
+			where sender = to_number(#{userid})
+			<if test='searchWord != "" '>
+			and lower(${searchType}) like '%'|| lower(#{searchWord}) ||'%'
+			</if>
+		)V
+		where rno between #{startRno} and #{endRno} 
+		order by outboxSeq desc
+   </select>
+   
+   
+   <!-- // 쪽지 1개 글 조회 <<outbox>> -->
+   <select id="getOutView" parameterType="int" resultType="com.spring.finalproject3.hyeminJang.model.OutboxVO">
+		    select  outboxSeq, fk_perno, sender, subject, outboxName,
+		             to_char(senDate, 'yyyy-mm-dd PM HH:MI:SS') as senDate, readDate
+		    from tbl_outbox
+		    where outboxSeq = #{outboxSeq}
+   </select>
+	
+	<!-- //단대이름알아오기 -->
+	<select id="getNameCol"  parameterType="int" resultType="String">
+		SELECT colname
+		FROM tbl_college C JOIN
+		(
+			select  fk_colno
+			from tbl_major
+			where majseq = #{majseq} 
+		) M
+		ON C.colno = M.fk_colno
+	</select>
+	
+
+</mapper>
