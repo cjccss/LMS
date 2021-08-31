@@ -1,6 +1,7 @@
 # LMS
-학습관리 프로그램(LMS)
-
+학습관리 프로그램(LMS)   
+   
+<img src="https://user-images.githubusercontent.com/75620662/131482181-b70ae58c-ac89-4cb3-a51b-0311a394b30f.png" width="500px" height="521px" />   
 
 ## 상세내용
 
